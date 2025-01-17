@@ -1,9 +1,10 @@
 // ignore_for_file: prefer_interpolation_to_compose_strings, non_constant_identifier_names
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class DataService {
-  Future insertAset(String appid, String nama, String kategori, String lokasi, String kondisi, String deskripsi, String gambar) async {
+  Future insertAset(String appid, String nama, String kategori, String lokasi, String kondisi, String deskripsi, String gambar, String syarat_ketentuan) async {
     String uri = 'https://io.etter.cloud/v4/insert';
 
     try {
@@ -17,7 +18,8 @@ class DataService {
         'lokasi': lokasi,
         'kondisi': kondisi,
         'deskripsi': deskripsi,
-        'gambar': gambar
+        'gambar': gambar,
+        'syarat_ketentuan': syarat_ketentuan
       });
 
       if (response.statusCode == 200) {
@@ -89,6 +91,61 @@ class DataService {
     }
   }
 
+  Future insertPeminjamanAset(String appid, String asetid, String nama_peminjam, String tanggal_pinjam, String tanggal_kembali, String tanggal_pengembalian) async {
+    String uri = 'https://io.etter.cloud/v4/insert';
+
+    try {
+      final response = await http.post(Uri.parse(uri), body: {
+        'token': '671063f5ec5074ec8261d115',
+        'project': 'manajemen_aset',
+        'collection': 'peminjaman_aset',
+        'appid': appid,
+        'asetid': asetid,
+        'nama_peminjam': nama_peminjam,
+        'tanggal_pinjam': tanggal_pinjam,
+        'tanggal_kembali': tanggal_kembali,
+        'tanggal_pengembalian': tanggal_pengembalian
+      });
+
+      if (response.statusCode == 200) {
+        return response.body;
+      } else {
+        // Return an empty array
+        return '[]';
+      }
+    } catch (e) {
+      // Print error here
+      return '[]';
+    }
+  }
+
+  Future insertLaporanKerusakan(String appid, String aset_id, String gambar, String tanggal_laporan, String keterangan) async {
+    String uri = 'https://io.etter.cloud/v4/insert';
+
+    try {
+      final response = await http.post(Uri.parse(uri), body: {
+        'token': '671063f5ec5074ec8261d115',
+        'project': 'manajemen_aset',
+        'collection': 'laporan_kerusakan',
+        'appid': appid,
+        'aset_id': aset_id,
+        'gambar': gambar,
+        'tanggal_laporan': tanggal_laporan,
+        'keterangan': keterangan,
+      });
+
+      if (response.statusCode == 200) {
+        return response.body;
+      } else {
+        // Return an empty array
+        return '[]';
+      }
+    } catch (e) {
+      // Print error here
+      return '[]';
+    }
+  }
+
   Future selectAll(String token, String project, String collection, String appid) async {
     String uri = 'https://io.etter.cloud/v4/select_all/token/' + token + '/project/' + project + '/collection/' + collection + '/appid/' + appid;
 
@@ -111,7 +168,6 @@ class DataService {
   Future selectId(String token, String project, String collection, String appid, String id) async {
     String uri = 'https://io.etter.cloud/v4/select_id/token/' + token + '/project/' + project + '/collection/' + collection + '/appid/' + appid + '/id/' + id;
 
-    print(uri);
     try {
       final response = await http.get(Uri.parse(uri));
 
@@ -829,6 +885,40 @@ class DataService {
     } catch (e) {
       // Print error here
       return '[]';
+    }
+  }
+
+  Future upload(
+      String token, String project, List<int> file, String ext) async {
+    try {
+      String uri = 'https://io.etter.cloud/v4/upload';
+
+      var request = http.MultipartRequest('POST', Uri.parse(uri));
+
+      request.fields['token'] = token;
+      request.fields['project'] = project;
+
+      request.files.add(http.MultipartFile.fromBytes('file', file,
+          filename: 'filename.' + ext));
+
+      var response = await request.send();
+      if (kDebugMode) {
+        print(response);
+      }
+
+      if (response.statusCode == 200) {
+        final res = await http.Response.fromStream(response);
+
+        if (kDebugMode) {
+          print(res.body);
+        }
+
+        return res.body;
+      } else {
+        return [];
+      }
+    } catch (e) {
+      return [];
     }
   }
 }

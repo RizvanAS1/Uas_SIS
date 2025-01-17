@@ -191,11 +191,8 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } on FirebaseAuthException catch (e) {
       // Tangani error FirebaseAuthException
-      String errorMessage = 'Terjadi kesalahan.';
       if (e.code == 'user-not-found') {
-        errorMessage = 'Email tidak terdaftar.';
       } else if (e.code == 'wrong-password') {
-        errorMessage = 'Password salah.';
       }
 
       // Tampilkan SnackBar atau dialog error

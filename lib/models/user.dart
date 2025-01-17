@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 
-enum Role { admin, user }
+enum Role { admin, user, engineer }
 
 class UserModel {
   final String id;

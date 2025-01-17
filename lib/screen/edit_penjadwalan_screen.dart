@@ -2,34 +2,50 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:manajemen_aset/utilis/api_config.dart';
 
 import '../data_service.dart';
+import '../models/maintenance_schedule.dart';
 
-class PenjadwalanPerawatanScreen extends StatefulWidget {
-  final String assetId;
+class EditJadwalanPerawatanScreen extends StatefulWidget {
+  final MaintenanceScheduleModel jadwal;
 
-  const PenjadwalanPerawatanScreen({super.key, required this.assetId});
+  const EditJadwalanPerawatanScreen({super.key, required this.jadwal});
 
   @override
-  State<PenjadwalanPerawatanScreen> createState() =>
-      _PenjadwalanPerawatanScreenState();
+  State<EditJadwalanPerawatanScreen> createState() =>
+      _EditJadwalanPerawatanScreenState();
 }
 
-class _PenjadwalanPerawatanScreenState
-    extends State<PenjadwalanPerawatanScreen> {
+class _EditJadwalanPerawatanScreenState
+    extends State<EditJadwalanPerawatanScreen> {
+  DataService dataService = DataService();
   final _formKey = GlobalKey<FormState>();
-  var _assetIdController = TextEditingController();
-  final _jenisPerawatanController = TextEditingController();
-  DateTime _selectedDate = DateTime.now();
-  TimeOfDay _selectedTime = TimeOfDay.now();
-  final _teknisiController = TextEditingController();
-  final _catatanController = TextEditingController();
+  late TextEditingController _jenisPerawatanController;
+  late TextEditingController _teknisiController;
+  late TextEditingController _catatanController;
+  late DateTime _selectedDate;
+  late TimeOfDay _selectedTime;
 
   @override
   void initState() {
     super.initState();
-    _assetIdController =
-        TextEditingController(text: widget.assetId); // Inisialisasi controller
+    _jenisPerawatanController =
+        TextEditingController(text: widget.jadwal.jenisPerawatan);
+    _teknisiController = TextEditingController(text: widget.jadwal.teknisi ?? '');
+    _catatanController = TextEditingController(text: widget.jadwal.catatan ?? '');
+    _selectedDate = widget.jadwal.tanggal;
+    _selectedTime = TimeOfDay(
+        hour: int.parse(widget.jadwal.waktu.split(':')[0]),
+        minute: int.parse(widget.jadwal.waktu.split(':')[1].split(' ')[0]));
+  }
+
+  @override
+  void dispose() {
+    _jenisPerawatanController.dispose();
+    _teknisiController.dispose();
+    _catatanController.dispose();
+    super.dispose();
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -42,7 +58,6 @@ class _PenjadwalanPerawatanScreenState
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
-
       });
     }
   }
@@ -62,41 +77,38 @@ class _PenjadwalanPerawatanScreenState
   Future<void> _submitJadwal() async {
     if (_formKey.currentState!.validate()) {
       // 1. Ambil data dari form
-      String assetId = _assetIdController.text;
       String jenisPerawatan = _jenisPerawatanController.text;
       DateTime tanggal = _selectedDate;
       String waktu = _selectedTime.format(context);
       String? teknisi = _teknisiController.text;
       String? catatan = _catatanController.text;
 
-      DataService dataService = DataService();
-      String response = await dataService.insertMaintenanceSchedule(
-        '677a3903f853312de5509e51',
-        assetId,
-        jenisPerawatan,
-        tanggal.toString().split(' ')[0],
-        waktu,
-        teknisi,
-        'Terjadwal',
-        catatan,
-      );
+      // 2. Gabungkan nama field dan nilai field
+      String updateFields =
+          'jenis_perawatan~tanggal~waktu~teknisi~catatan';
+      String updateValues =
+          '$jenisPerawatan~$tanggal~$waktu~$teknisi~$catatan';
 
-      // 3. Proses response
-      if (response != '[]') {
-        // Data berhasil disimpan
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Jadwal perawatan berhasil ditambahkan!')),
-        );
+      // 3. Panggil fungsi updateId
+      dataService
+          .updateId(
+        updateFields,
+        updateValues,
+        token,
+        'manajemen_aset',
+        'maintenance_schedule',
+        appId,
+        widget.jadwal.id, // Ganti dengan ID aset
+      )
+          .then((value) {Navigator.pop(context);                      Navigator.pop(context);
+      }).catchError((error) {
 
-        // 4. Bersihkan form
-        _formKey.currentState!.reset();
-      } else {
-        // Terjadi error saat menyimpan data
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Gagal menambahkan jadwal perawatan.')),
-        );
-      }
+        print('Error updating data: $error');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content:
+          Text('Gagal menyimpan data. Silakan coba lagi.'),
+        ));
+      });
     }
   }
 
@@ -104,7 +116,54 @@ class _PenjadwalanPerawatanScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Penjadwalan Perawatan'),
+        title: const Text('Edit Penjadwalan Perawatan'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: () {
+              // Tampilkan dialog konfirmasi
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Konfirmasi Hapus'),
+                  content: const Text('Apakah Anda yakin ingin menghapus jadwal ini?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Batal'),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        // Panggil fungsi untuk menghapus jadwal
+                        bool success = await dataService.removeId(
+                            token,
+                            project,
+                            'maintenance_schedule',
+                            appId,
+                            widget.jadwal.id);
+
+                        if (success) {
+                          // Hapus berhasil
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Jadwal berhasil dihapus!')),
+                          );
+                          Navigator.pop(context); // Tutup dialog
+                          Navigator.pop(context); // Kembali ke halaman sebelumnya
+                        } else {
+                          // Hapus gagal
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Gagal menghapus jadwal.')),
+                          );
+                        }
+                      },
+                      child: const Text('Hapus'),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Form(
         key: _formKey,
@@ -150,7 +209,7 @@ class _PenjadwalanPerawatanScreenState
               ElevatedButton(
                 onPressed: () => _selectDate(context),
                 child: Text(
-                  DateFormat('dd-MM-yyyy').format(_selectedDate)),
+                    DateFormat('dd-MM-yyyy').format(_selectedDate)),
               ),
               const SizedBox(height: 16.0),
               //Menambahkan Pilih Waktu

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:manajemen_aset/screen/creat_aset_screen.dart';
 import 'package:manajemen_aset/screen/detail_aset_screen.dart';
 import 'package:manajemen_aset/screen/login_screen.dart';
+import 'package:manajemen_aset/utilis/api_config.dart';
 import 'package:provider/provider.dart';
 
 import 'data_service.dart';
@@ -31,7 +32,16 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.blue,
+          centerTitle: true,
+          titleTextStyle: TextStyle(color: Colors.white, fontSize: 24),
+          actionsIconTheme: IconThemeData(color: Colors.white),
+          iconTheme: IconThemeData(
+            color: Colors.white, // Ubah warna ikon di AppBar
+          ),
+        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
       home: LoginScreen(),
@@ -48,90 +58,108 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   DataService dataService = DataService();
+  late Future<List<dynamic>> _futureData;
+
+  Future<List<dynamic>> _loadData() {
+    return dataService
+        .selectAll(token, project, collection, appId)
+        .then((value) => jsonDecode(value));
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _futureData = _loadData();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<UserProvider>(
       builder: (context, userProvider, child) {
+        userProvider.setCurrentUser;
         final user = userProvider.currentUser;
-        // final user = UserModel(id: "1", email: "admin@gmail.com", role: Role.admin);
-        if (user == null) {
-          return const CircularProgressIndicator();
-        }
 
-        return Scaffold(
-            appBar: AppBar(
-              automaticallyImplyLeading: false,
-              title: const Text('Home Screen'),
-              actions: [
-                IconButton(
-                  onPressed: () => _signOut(context),
-                  icon: const Icon(Icons.logout),
-                ),
-              ],
-            ),
-            // body: Center(
-            //   child: Column(
-            //     mainAxisAlignment: MainAxisAlignment.center,
-            //     children: [
-            //       Text('Selamat datang, ${user.email}!'),
-            //        // Hanya tampilkan tombol ini jika user adalah admin
-            //         ElevatedButton(
-            //           onPressed: () {
-            //             // Navigasi ke halaman admin
-            //           },
-            //           child: const Text('Halaman Admin'),
-            //         ),
-            //     ],
-            //   ),
-            // ),
-            body: FutureBuilder<List<dynamic>>(
-              future: dataService
-                  .selectAll('671063f5ec5074ec8261d115', 'manajemen_aset',
-                      'aset', '677a3903f853312de5509e51')
-                  .then((value) => jsonDecode(value)),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                } else if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(child: Text('Tidak ada data.'));
-                } else {
-                  return Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: ListView.builder(
-                      itemCount: snapshot.data!.length,
-                      itemBuilder: (context, index) {
-                        var aset = snapshot.data![index];
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 10),
-                          child: ListTile(
-                            title: Text(aset['nama'] ?? ''),
-                            subtitle: Text(aset['kategori'] ?? ''),
-                            shape: RoundedRectangleBorder(
-                              side: const BorderSide(color: Colors.grey),
-                              borderRadius: BorderRadius.circular(5),
-                            ),
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      DetailAsetScreen(aset: aset),
-                                ),
-                              );
-                            },
-                          ),
-                        );
-                      },
+        if (user == null) {
+          return const Center(child: CircularProgressIndicator());
+        } else {
+          return RefreshIndicator(
+            onRefresh: () async {
+              setState(() {
+                _futureData = _loadData();
+              });
+            },
+            child: Scaffold(
+                appBar: AppBar(
+                  automaticallyImplyLeading: false,
+                  title: const Text('Explore'),
+                  actions: [
+                    IconButton(
+                      onPressed: () => _signOut(context),
+                      icon: const Icon(Icons.logout),
                     ),
-                  );
-                }
-              },
-            ),
-            floatingActionButton:
-                Provider.of<UserProvider>(context).currentUser!.role ==
+                  ],
+                ),
+                body: FutureBuilder<List<dynamic>>(
+                  future: _futureData,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    } else if (snapshot.hasError) {
+                      return Center(child: Text('Error: ${snapshot.error}'));
+                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return const Center(child: Text('Tidak ada data.'));
+                    } else {
+                      return Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: ListView.builder(
+                          itemCount: snapshot.data!.length,
+                          itemBuilder: (context, index) {
+                            var aset = snapshot.data![index];
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 10),
+                              child: ListTile(
+                                visualDensity: VisualDensity(vertical: 3),
+                                contentPadding: EdgeInsets.symmetric(
+                                    vertical: 6, horizontal: 9),
+                                leading: Container(
+                                  width: 100,
+                                  height: 100,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.rectangle,
+                                    image: DecorationImage(
+                                      image: NetworkImage(
+                                          fileUri + aset['gambar']),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                                title: Text(aset['nama'] ?? ''),
+                                subtitle: Text(aset['kategori'] ?? ''),
+                                shape: RoundedRectangleBorder(
+                                  side: const BorderSide(color: Colors.grey),
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => DetailAsetScreen(
+                                        aset: aset,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    }
+                  },
+                ),
+                floatingActionButton: Provider.of<UserProvider>(context)
+                            .currentUser!
+                            .role ==
                         Role.admin
                     ? FloatingActionButton(
                         onPressed: () {
@@ -141,9 +169,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                 builder: (context) => const TambahAsetScreen()),
                           );
                         },
-                        child: const Icon(Icons.add),
+                        backgroundColor: Colors.blue,
+                        child: const Icon(Icons.add, color: Colors.white),
                       )
-                    : null);
+                    : null),
+          );
+        }
       },
     );
   }

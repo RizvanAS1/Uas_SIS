@@ -22,8 +22,8 @@ class MaintenanceScheduleModel {
   factory MaintenanceScheduleModel.fromJson(Map<String, dynamic> data) {
     return MaintenanceScheduleModel(
       id: data['_id'],
-      assetId: data['assetId'],
-      jenisPerawatan: data['jenisPerawatan'],
+      assetId: data['assetid'],
+      jenisPerawatan: data['jenis_perawatan'],
       tanggal: DateTime.parse(data['tanggal']), // Asumsi 'tanggal' bertipe String dalam format yang bisa di-parse
       waktu: data['waktu'],
       teknisi: data['teknisi'],
